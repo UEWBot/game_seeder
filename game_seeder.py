@@ -29,6 +29,7 @@ class GameSeeder:
         starts is the number of initial seedings to generate.
         iterations is the number of times to modify each initial seeding in an attempt to improve it.
         """
+        self.games_played = 0
         self.starts = starts
         self.iterations = iterations
         # Dict, keyed by player, of dicts, keyed by (other) player, of integer counts of shared games
@@ -130,6 +131,7 @@ class GameSeeder:
                         if q not in self.games_played_matrix:
                             raise InvalidPlayer(str(q))
                         self.games_played_matrix[p][q] = 1
+        self.games_played += 1
 
     def _fitness_score(self, game):
         """
@@ -276,7 +278,11 @@ class GameSeeder:
         if len(players) % 7 != 0:
             raise InvalidPlayerCount("%d total plus %d duplicated minus %d omitted" % (len(self.games_played_matrix), len(self.duplicates), len(omitting_players)))
         res = self._assign_players_wrapper(players)
-        res, fitness = self._improve_fitness(res)
+        # There's no point iterating if all solutions have a fitness of zero
+        if self.games_played == 0:
+            fitness = 0
+        else:
+            res, fitness = self._improve_fitness(res)
         # Return the resulting list of games
         return res, fitness
 
@@ -291,7 +297,11 @@ class GameSeeder:
         """
         # Generate the specified number of seedings
         seedings = []
-        for i in range(self.starts):
+        starts = self.starts
+        # No point generating multiples if they're all equally good
+        if self.games_played == 0:
+            starts = 1
+        for i in range(starts):
             # This gives us a list of 2-tuples with (seeding, fitness)
             seedings.append(self._seed_games(omitting_players))
         # Sort them by fitness

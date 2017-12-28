@@ -159,9 +159,9 @@ class GameSeeder:
                         pass
         return f
 
-    def _assign_players_to_games(self, players):
+    def _assign_players_to_games_randomly(self, players):
         """
-        Assign all the players provided to games.
+        Assign all the players provided to games completely at random, with no weighting.
         Returns a list of sets of 7 players.
         len(players) must be a multiple of 7.
         Raises _AssignmentFailed if the algorithm messes up.
@@ -194,6 +194,7 @@ class GameSeeder:
         """
         Calculate a total fitness score for this list of games.
         Range is 0-(42 * len(games)). Lower is better.
+        Can raise InvalidPlayer if any player is unknown or duplicated.
         """
         fitness = 0
         for g in games:
@@ -241,7 +242,7 @@ class GameSeeder:
             # _assign_players_to_game() will empty the set of players we pass it
             p = players.copy()
             try:
-                res = self._assign_players_to_games(p)
+                res = self._assign_players_to_games_randomly(p)
                 break
             except _AssignmentFailed:
                 pass
@@ -288,6 +289,6 @@ class GameSeeder:
         # Sort them by fitness
         seedings.sort(key=itemgetter(1))
         print("With starts=%d and iterations=%d, best fitness score is %d" % (self.starts, self.iterations, seedings[0][1]))
-        # Return the best
+        # Return the best (we don't care if multiple seedings are equally good)
         return seedings[0][0]
 

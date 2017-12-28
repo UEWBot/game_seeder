@@ -23,7 +23,11 @@ class GameSeeder:
     then tries swapping players at random between games. A fitness measure is used to determine
     whether the old or new assignment is better.
     """
-    def __init__(self):
+    def __init__(self, iterations=1000):
+        """
+        iterations is the number of times to modify the initial seeding in an attempt to improve it.
+        """
+        self.iterations = iterations
         # Dict, keyed by player, of dicts, keyed by (other) player, of integer counts of shared games
         self.games_played_matrix = {}
         # Dict, keyed by player, of players
@@ -198,11 +202,10 @@ class GameSeeder:
         Try swapping random players between games to see if we can improve the overall fitness score.
         Returns the best set of games it finds.
         """
-        ITERATIONS = 1000
         best_set = copy.deepcopy(games)
         best_fitness = self._set_fitness(games)
         # The more iterations, the better the result, but the longer it takes
-        for t in range(ITERATIONS):
+        for t in range(self.iterations):
            # Try swapping a random player between two random games
            g1 = random.choice(games)
            g2 = random.choice(games)

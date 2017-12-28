@@ -248,12 +248,10 @@ class GameSeeder:
                 pass
         return res
 
-    def _seed_games(self, omitting_players):
+    def _player_pool(self, omitting_players):
         """
-        Returns a list of games, where each game is a set of 7 players, and the fitness score for the set.
-        omitting_players is a set of previously-added players not to assign to games.
-        Can raise InvalidPlayer if any player in omitting_players is unknown.
-        Can raise InvalidPlayerCount if the resulting number of players isn't an exact multiple of 7.
+        Returns a set of players containing every known player and every duplicate,
+        but excluding any players in omitting_players.
         """
         # Come up with a list of players to draw from
         players = set(self.games_played_matrix.keys())
@@ -264,6 +262,16 @@ class GameSeeder:
             if p not in players:
                 raise InvalidPlayer(str(p))
             players.remove(p)
+        return players
+
+    def _seed_games(self, omitting_players):
+        """
+        Returns a list of games, where each game is a set of 7 players, and the fitness score for the set.
+        omitting_players is a set of previously-added players not to assign to games.
+        Can raise InvalidPlayer if any player in omitting_players is unknown.
+        Can raise InvalidPlayerCount if the resulting number of players isn't an exact multiple of 7.
+        """
+        players = self._player_pool(omitting_players)
         # Check that we have a multiple of seven players
         if len(players) % 7 != 0:
             raise InvalidPlayerCount("%d total plus %d duplicated minus %d omitted" % (len(self.games_played_matrix), len(self.duplicates), len(omitting_players)))

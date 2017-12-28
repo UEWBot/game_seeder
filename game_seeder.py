@@ -1,4 +1,5 @@
 import copy, random
+from operator import itemgetter
 
 class InvalidPlayer(Exception):
     """A player is invalid in some way (unknown, already present, etc)."""
@@ -23,10 +24,12 @@ class GameSeeder:
     then tries swapping players at random between games. A fitness measure is used to determine
     whether the old or new assignment is better.
     """
-    def __init__(self, iterations=1000):
+    def __init__(self, starts=1, iterations=1000):
         """
-        iterations is the number of times to modify the initial seeding in an attempt to improve it.
+        starts is the number of initial seedings to generate.
+        iterations is the number of times to modify each initial seeding in an attempt to improve it.
         """
+        self.starts = starts
         self.iterations = iterations
         # Dict, keyed by player, of dicts, keyed by (other) player, of integer counts of shared games
         self.games_played_matrix = {}
@@ -200,7 +203,7 @@ class GameSeeder:
     def _improve_fitness(self, games):
         """
         Try swapping random players between games to see if we can improve the overall fitness score.
-        Returns the best set of games it finds.
+        Returns the best set of games it finds and the fitness score for that set.
         """
         best_set = copy.deepcopy(games)
         best_fitness = self._set_fitness(games)
@@ -228,7 +231,7 @@ class GameSeeder:
                    #print(games)
                    best_fitness = fitness
                    best_set = copy.deepcopy(games)
-        return best_set
+        return best_set, best_fitness
 
     def _assign_players_wrapper(self, players):
         """
@@ -244,10 +247,10 @@ class GameSeeder:
                 pass
         return res
 
-    def seed_games(self, omitting_players=set()):
+    def _seed_games(self, omitting_players):
         """
-        Returns a list of games, where each game is a set of 7 players.
-        omitting_players is an optional set of previously-added players not to assign to games.
+        Returns a list of games, where each game is a set of 7 players, and the fitness score for the set.
+        omitting_players is a set of previously-added players not to assign to games.
         Can raise InvalidPlayer if any player in omitting_players is unknown.
         Can raise InvalidPlayerCount if the resulting number of players isn't an exact multiple of 7.
         """
@@ -264,7 +267,27 @@ class GameSeeder:
         if len(players) % 7 != 0:
             raise InvalidPlayerCount("%d total plus %d duplicated minus %d omitted" % (len(self.games_played_matrix), len(self.duplicates), len(omitting_players)))
         res = self._assign_players_wrapper(players)
-        res = self._improve_fitness(res)
+        res, fitness = self._improve_fitness(res)
         # Return the resulting list of games
-        return res
+        return res, fitness
+
+    def seed_games(self, omitting_players=set()):
+        """
+        Returns a list of games, where each game is a set of 7 players.
+        omitting_players is an optional set of previously-added players not to assign to games.
+        Internally, this will generate the number of sets specified when the class was instantiated,
+        and return the best one.
+        Can raise InvalidPlayer if any player in omitting_players is unknown.
+        Can raise InvalidPlayerCount if the resulting number of players isn't an exact multiple of 7.
+        """
+        # Generate the specified number of seedings
+        seedings = []
+        for i in range(self.starts):
+            # This gives us a list of 2-tuples with (seeding, fitness)
+            seedings.append(self._seed_games(omitting_players))
+        # Sort them by fitness
+        seedings.sort(key=itemgetter(1))
+        print("With starts=%d and iterations=%d, best fitness score is %d" % (self.starts, self.iterations, seedings[0][1]))
+        # Return the best
+        return seedings[0][0]
 

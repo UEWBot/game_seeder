@@ -243,9 +243,9 @@ class GameSeederSetupTest(unittest.TestCase):
         game = set(['A', 'C', 'D', 'H', 'I', 'J', 'K'])
         self.assertEqual(6, seeder._fitness_score(game))
 
-def create_seeder():
+def create_seeder(starts=1, iterations=1000):
     # As there's no way to remove players or duplicates, we'll re-create the seeder in each test
-    seeder = GameSeeder()
+    seeder = GameSeeder(starts, iterations)
     # 20 players to start with
     seeder.add_player('A')
     seeder.add_player('B')
@@ -326,9 +326,9 @@ class GameSeederSeedingTest(unittest.TestCase):
         # which gives each game a fitness of 2+2+6=10, and the set a fitness of 10*3=30
         self.assertEqual(s._set_fitness(r), 30)
 
-    def test_seed_games_bigger_tournament(self):
+    def seed_bigger_tournament(self, starts, iterations):
         # Two rounds of a 49-player tournament
-        seeder = GameSeeder()
+        seeder = GameSeeder(starts, iterations)
         for i in range(49):
             seeder.add_player('%dp' % i)
         r = seeder.seed_games()
@@ -347,6 +347,12 @@ class GameSeederSeedingTest(unittest.TestCase):
         # In practice, with 10000 iterations I see 12..16
         self.assertTrue(seeder._set_fitness(r) < 24)
         print(seeder._set_fitness(r))
+
+    def test_seed_games_bigger_tournament(self):
+        the_cases = [(1, 1000), (100, 100), (1000, 1)]
+        for (starts, iterations) in the_cases:
+            with self.subTest(starts=starts, iterations=iterations):
+                self.seed_bigger_tournament(starts, iterations)
 
     def test_seed_games_wrong_number_of_players(self):
         # Total player count not a multiple of 7

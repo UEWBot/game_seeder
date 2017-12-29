@@ -399,5 +399,62 @@ class GameSeederSeedingTest(unittest.TestCase):
         r = s.seed_games(omits)
         self.check_game_set(r, 21)
 
+class ExhaustiveGameSeederTest(unittest.TestCase):
+    """
+    Validate an exhaustive GameSeeder seeding games
+    """
+
+    # Our players will be strings (names)
+
+    def setUp(self):
+        pass
+
+    def tearDown(self):
+        pass
+
+    # TODO This is a copy-paste from the class above. Should share code
+    def check_game(self, game):
+        # Game should have exactly 7 players
+        self.assertEqual(len(game), 7)
+        # No player should be playing with their duplicate
+        # In this test, all duplicates are the playername plus '2'
+        for p in game:
+            if p[-1] == '2':
+                self.assertFalse(p[:-1] in game)
+
+    # TODO This is a copy-paste from the class above. Should share code
+    def check_game_set(self, game_set, players, omissions = set()):
+        game_count = len(game_set)
+        self.assertEqual(game_count, players / 7)
+        # Every game should be valid by itself
+        for g in game_set:
+            self.check_game(g)
+        # Each player should be present exactly once
+        players = set()
+        for g in game_set:
+            players |= g
+        self.assertEqual(len(players), 7 * game_count, "One or more players is playing multiple games")
+        # No omitted players should be present
+        self.assertEqual(len(players & omissions), 0, "One or more omitted players is in a game")
+
+    def test_exhaustive_seeding(self):
+        players = [(7, 42), (14, 36)]
+        for count, fitness in players:
+            with self.subTest(player_count=count):
+                seeder = GameSeeder(seed_method=SeedMethod.EXHAUSTIVE)
+                for i in range(count):
+                    seeder.add_player('%dp' % i)
+                r = seeder.seed_games()
+                self.check_game_set(r, count)
+                # First round by definition should have a fitness of zero
+                self.assertEqual(seeder._set_fitness(r), 0)
+                # Add the first round games as played
+                for g in r:
+                    seeder.add_played_game(g)
+                r = seeder.seed_games()
+                self.check_game_set(r, count)
+                # Check that game_set has the expected fitness score
+                self.assertEqual(seeder._set_fitness(r), fitness)
+
 if __name__ == '__main__':
     unittest.main()

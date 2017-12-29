@@ -1,5 +1,6 @@
-import copy, random
+import copy, random, itertools
 from operator import itemgetter
+from enum import Enum, auto
 
 class InvalidPlayer(Exception):
     """A player is invalid in some way (unknown, already present, etc)."""
@@ -17,21 +18,36 @@ class _AssignmentFailed(Exception):
     """Internal exception used when we end up with an invalid assignment of players to games."""
     pass
 
+class SeedMethod(Enum):
+    RANDOM = auto()
+    EXHAUSTIVE = auto()
+
 class GameSeeder:
     """
     Assigns Diplomacy players to games to minimise the number of people they play again.
-    The algorithms used are very much brute-force. It initially assigns players at random to games,
-    then tries swapping players at random between games. A fitness measure is used to determine
-    whether the old or new assignment is better.
+    Two algorithms are supported:
+    EXHAUSTIVE
+        Try every possible seeding. This will take a long time with many players.
+        It may also exhaust memory. Definitely not recommended for 28 players, and may well
+        not work with 21.
+    RANDOM
+        Initially assigns players at random to games, then tries swapping players at random between games.
+        The number of candidate seedings and the number of iterations can both be specified.
+    In both cases, a fitness measure is used to determine the best candidate seeding.
     """
-    def __init__(self, starts=1, iterations=1000):
+    def __init__(self, starts=1, iterations=1000, seed_method=SeedMethod.RANDOM):
         """
-        starts is the number of initial seedings to generate.
-        iterations is the number of times to modify each initial seeding in an attempt to improve it.
+        seed_method specifies the algorithm used to find a candidate seeding:
+            RANDOM - pick sets of players at random
+            EXHAUSTIVE - try every possible seeding
+        starts is the number of initial seedings to generate. Not used with EXHAUSTIVE seed_method.
+        iterations is the number of times to modify each initial seeding in an attempt to improve it. Not used with EXHAUSTIVE seed_method.
         """
         self.games_played = 0
-        self.starts = starts
-        self.iterations = iterations
+        self.seed_method = seed_method
+        if seed_method == SeedMethod.RANDOM:
+            self.starts = starts
+            self.iterations = iterations
         # Dict, keyed by player, of dicts, keyed by (other) player, of integer counts of shared games
         self.games_played_matrix = {}
         # Dict, keyed by player, of players
@@ -250,6 +266,33 @@ class GameSeeder:
                 pass
         return res
 
+    def _all_possible_seedings(self, players):
+        """
+        Returns a list of all possible seedings (each being a list of sets of 7 players).
+        This will include seedings with players playing their duplicates.
+        It will also include seedings with the same games in different orders.
+        Note that this will take a long time for large numbers of players.
+        """
+        if len(players) % 7 != 0:
+            raise InvalidPlayerCount("%d is not an exact multiple of 7" % len(players))
+        if len(players) == 7:
+            # With 7 players, there is exactly one possible game,
+            # and therefore exactly one possible seeding
+            return [[players]]
+        res = []
+        # Go through all possible combinations for the first game:
+        for t in itertools.combinations(list(players), 7):
+            game = set(t)
+            # Make a copy of players, and remove the players in game
+            p2 = players.copy()
+            for p in game:
+                p2.remove(p)
+            # Now we can create each possible set that includes this game
+            for s in self._all_possible_seedings(p2):
+                s.append(game)
+                res.append(s)
+        return res
+
     def _player_pool(self, omitting_players):
         """
         Returns a set of players containing every known player and every duplicate,
@@ -296,17 +339,32 @@ class GameSeeder:
         Can raise InvalidPlayerCount if the resulting number of players isn't an exact multiple of 7.
         """
         # Generate the specified number of seedings
-        seedings = []
-        starts = self.starts
-        # No point generating multiples if they're all equally good
-        if self.games_played == 0:
+        # Use the random method if no games have been played yet, because any seeding is fine
+        if (self.games_played == 0) or (self.seed_method == SeedMethod.RANDOM):
+            seedings = []
+            # No point generating multiples if they're all equally good
             starts = 1
-        for i in range(starts):
-            # This gives us a list of 2-tuples with (seeding, fitness)
-            seedings.append(self._seed_games(omitting_players))
+            if self.games_played > 0:
+                starts = self.starts
+            for i in range(starts):
+                # This gives us a list of 2-tuples with (seeding, fitness)
+                seedings.append(self._seed_games(omitting_players))
+        elif self.seed_method == SeedMethod.EXHAUSTIVE:
+            players = self._player_pool(omitting_players)
+            seedings = []
+            for s in self._all_possible_seedings(players):
+                try:
+                    fitness = self._set_fitness(s)
+                except InvalidPlayer:
+                    continue
+                seedings.append((s, fitness))
         # Sort them by fitness
         seedings.sort(key=itemgetter(1))
-        print("With starts=%d and iterations=%d, best fitness score is %d" % (self.starts, self.iterations, seedings[0][1]))
+        if self.seed_method == SeedMethod.RANDOM:
+            bg_str = "With starts=%d and iterations=%d" % (self.starts, self.iterations)
+        else:
+            bg_str = "With Exhaustive seeding"
+        print("%s, best fitness score is %d in %d seedings" % (bg_str, seedings[0][1], len(seedings)))
         # Return the best (we don't care if multiple seedings are equally good)
         return seedings[0][0]
 

@@ -21,12 +21,15 @@ Assign powers to players in a Diplomacy game.
 import operator, random
 
 class InvalidPower(Exception):
+    """The power was not included in all_powers as passed to __init__()"""
     pass
 
 class MissingPower(Exception):
+    """One or more powers from all_powers as passed to __init__() is missing"""
     pass
 
 class WrongPlayerCount(Exception):
+    """There should be exactly one player per power"""
     pass
 
 class PowerAssignment():
@@ -97,7 +100,7 @@ class PowerAssignment():
 
     def _calculate_group_fitness(self, power_assignment, grouping):
         """
-        Returns a fitness score for the specified power assignment.
+        Returns a fitness score for the specified power assignment and grouping.
         Score is the number of times a played in the assignment has
         previously played a power from the same group, so a lower number is better,
         and a score of zero is ideal.
@@ -140,7 +143,7 @@ class PowerAssignment():
 
     def _assign_remaining_powers(self, used_powers, to_players):
         """
-        Recursively assign powers to players, returning a list of every combo.
+        Recursively assign powers to players, returning a list of every combination.
         Returns a list of dicts, indexed by player, of powers.
         """
         results = []
@@ -184,5 +187,5 @@ class PowerAssignment():
         # Sort by fitness score
         results.sort(key=operator.itemgetter(1))
         # Return the best assignment
-        print("Best assignment has a score of %d" % results[0][1])
+        #print("Best assignment has a score of %d" % results[0][1])
         return results[0][0]

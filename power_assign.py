@@ -21,12 +21,24 @@ class PowerAssignment():
     def set_earlier_games(self, for_player, powers_played):
         """
         Specifies which powers have previously been played by the specified player.
+        Overwrites any previous record for this player.
+        Note that it makes perfect sense to include a power multiple times
+        in powers_played if the player has played that power more than once.
         """
         # Check for any powers we don't know about
         for p in powers_played:
             if p not in self.all_powers:
                 raise InvalidPower(p)
         self.previous_games[for_player] = powers_played
+
+    def add_power_played(self, for_player, power):
+        """
+        Add to the list of powers played by the specified player.
+        """
+        # Check for any powers we don't know about
+        if power not in self.all_powers:
+            raise InvalidPower(p)
+        self.previous_games[for_player].append(power)
 
     def _calculate_fitness(self, power_assignment):
         """

@@ -16,13 +16,12 @@ def one_round(assigner, players):
     print(r)
     return r
 
-def run_test(power_count, rounds):
+def run_test(rounds):
     round = 1
     # Create a list of powers and a list of players
-    powers = []
+    powers = ['A', 'E', 'F', 'G', 'I', 'R', 'T']
     players = []
-    for i in range(1, power_count + 1):
-        powers.append('Power %d' % i)
+    for i in range(1, 8):
         players.append('Player %d' % i)
     # Create the class to test
     assigner = PowerAssignment(powers)
@@ -39,4 +38,4 @@ def run_test(power_count, rounds):
         r = one_round(assigner, players)
 
 if __name__ == '__main__':
-    run_test(7, 4)
+    run_test(4)

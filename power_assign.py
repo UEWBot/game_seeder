@@ -23,6 +23,9 @@ import operator, random
 class InvalidPower(Exception):
     pass
 
+class MissingPower(Exception):
+    pass
+
 class WrongPlayerCount(Exception):
     pass
 
@@ -35,8 +38,40 @@ class PowerAssignment():
         """
         Set the list of all available powers for a game.
         """
+        # Indexed by player, of powers
         self.previous_games = {}
+        self.groupings = []
         self.all_powers = all_powers
+
+    def add_grouping(self, grouping, value=100):
+        """
+        Specifies a way powers should be considered to be groups.
+        Power assignment will try to assign powers from groups
+        that have not previously been played by a player.
+        Note that multiple groupings can be specified, in which case
+        all of them will be considered when evaluating a possible
+        assignment.
+
+        grouping is a list of lists of powers.
+        value is a measure of the weight to apply to this grouping.
+            Each time a player has played a power in a group before,
+            value will be added to the fitness score for that assignment.
+            The default value of 100 will weight groups much higher than
+            individual powers, meaning that individual powers will only
+            be considered as a tie-breaker after considering groups.
+        """
+        # Check for unrecognised powers
+        for g in grouping:
+            for p in g:
+                if p not in self.all_powers:
+                    raise InvalidPower(p)
+        # Check for missing powers
+        power_set = set(self.all_powers)
+        for g in grouping:
+            power_set -= set(g)
+        if len(power_set) > 0:
+            raise MissingPower(power_set)
+        self.groupings.append((grouping, value))
 
     def set_earlier_games(self, for_player, powers_played):
         """
@@ -59,6 +94,30 @@ class PowerAssignment():
         if power not in self.all_powers:
             raise InvalidPower(p)
         self.previous_games[for_player].append(power)
+
+    def _calculate_group_fitness(self, power_assignment, grouping):
+        """
+        Returns a fitness score for the specified power assignment.
+        Score is the number of times a played in the assignment has
+        previously played a power from the same group, so a lower number is better,
+        and a score of zero is ideal.
+        """
+        score = 0
+        for k,v in power_assignment.items():
+            # Find the group containing this power
+            for g in grouping:
+                if v in g:
+                    # This is the group we want
+                    break
+            # How many times has this player previously played a power from this group?
+            try:
+                for i in self.previous_games[k]:
+                    if i in g:
+                        score += 1
+            except KeyError:
+                # No previous games for this player
+                pass
+        return score
 
     def _calculate_fitness(self, power_assignment):
         """
@@ -115,8 +174,15 @@ class PowerAssignment():
         # Calculate a fitness score for each possible assignment
         results = []
         for a in assignments:
-            results.append((a, self._calculate_fitness(a)))
+            score = 0
+            # Score for each grouping
+            for g, weight in self.groupings:
+                score += weight * self._calculate_group_fitness(a, g)
+            # Score for exact powers played before
+            score += self._calculate_fitness(a)
+            results.append((a, score))
         # Sort by fitness score
         results.sort(key=operator.itemgetter(1))
         # Return the best assignment
+        print("Best assignment has a score of %d" % results[0][1])
         return results[0][0]

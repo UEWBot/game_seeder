@@ -20,6 +20,16 @@ Assign powers to players in a Diplomacy game.
 
 from power_assign import *
 
+powers = ['A', 'E', 'F', 'G', 'I', 'R', 'T']
+# East versus west
+grouping_1 = [['E', 'F', 'G'], ['A', 'I', 'R', 'T']]
+# Centre versus west versus east
+grouping_2 = [['A', 'G', 'I'], ['E', 'F'], ['R', 'T']]
+# Centre versus witches versus the rest
+grouping_3 = [['A', 'G', 'I'], ['E', 'T'], ['F', 'R']]
+# Pairs
+grouping_4 = [['A', 'I'], ['E', 'F'], ['R', 'T'], ['G']]
+
 powers_played = {}
 
 def note_played_powers(assigner, assignment):
@@ -38,13 +48,17 @@ def one_round(assigner, players):
 
 def run_test(rounds):
     round = 1
-    # Create a list of powers and a list of players
-    powers = ['A', 'E', 'F', 'G', 'I', 'R', 'T']
+    # Create a list of players
     players = []
     for i in range(1, 8):
         players.append('Player %d' % i)
     # Create the class to test
     assigner = PowerAssignment(powers)
+    # Add groupings
+    assigner.add_grouping(grouping_1)
+    assigner.add_grouping(grouping_2)
+    assigner.add_grouping(grouping_3)
+    assigner.add_grouping(grouping_4)
     # Try with no earlier games
     print("Testing with no earlier games")
     r = assigner.best_power_assignment(players)

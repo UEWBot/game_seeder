@@ -1,4 +1,4 @@
-import operator
+import operator, random
 
 class InvalidPower(Exception):
     pass
@@ -69,6 +69,7 @@ class PowerAssignment():
         player = to_players[0]
         remaining_players = to_players[1:]
         remaining_powers = list(set(self.all_powers) - set(used_powers))
+        random.shuffle(remaining_powers)
         for power in remaining_powers:
             assignment = {}
             assignment[player] = power

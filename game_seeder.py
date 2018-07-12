@@ -68,11 +68,10 @@ class GameSeeder:
         if seed_method == SeedMethod.RANDOM:
             self.starts = starts
             self.iterations = iterations
+        # List of players to use to seed games. May include duplicates
+        self.players = []
         # Dict, keyed by player, of dicts, keyed by (other) player, of integer counts of shared games
         self.games_played_matrix = {}
-        # Dict, keyed by player, of players
-        # Used to track players playing in multiple games
-        self.duplicates = {}
 
     def add_player(self, player):
         """
@@ -82,80 +81,18 @@ class GameSeeder:
         """
         if player in self.games_played_matrix:
             raise InvalidPlayer(str(player))
+        self.players.append(player)
         self.games_played_matrix[player] = {}
-
-    def duplicate_player(self, player, new_key):
-        """
-        Create a duplicate of a player.
-        This is useful if you have a player playing multiple games.
-        Can raise InvalidPlayer if player is unknown.
-        Can raise InvalidKey if new_key is a player.
-        """
-        # player must be a known player
-        if player not in self.games_played_matrix:
-            raise InvalidPlayer(str(player))
-        # new_key must not be a known player
-        if new_key in self.games_played_matrix:
-            raise InvalidKey("%s is a player" % str(new_key))
-        # new_key must not already exist
-        if new_key in self.duplicates:
-            raise InvalidKey("%s already recorded as a duplicate" % str(new_key))
-        # Note the duplication
-        self.duplicates[new_key] = player
-
-    def _check_for_playing_self(self, game):
-        """
-        Raises InvalidPlayer if a given player is included in game multiple times,
-        including checking for duplicates.
-        """
-        orig_len = len(game)
-        new_game = game.copy()
-        self._replace_duplicates_with_mains(new_game)
-        if len(new_game) == orig_len:
-            return
-        # At this point, we know we're going to raise the exception
-        removals = game - new_game
-        changes = game ^ new_game
-        # If game had a player and their duplicate, changes will only have the duplicate
-        for p in removals:
-            changes.add(self.duplicates[p])
-        raise InvalidPlayer("Duplicate players: %s" % ", ".join(changes))
-
-    def _duplicate_in_game(self, game, player):
-        """
-        Returns True if player, or a duplicate thereof, is in game.
-        """
-        new_game = game.copy()
-        new_game.add(player)
-        try:
-            self._check_for_playing_self(new_game)
-        except InvalidPlayer:
-            return True
-        return False
-
-    def _replace_duplicates_with_mains(self, game):
-        """
-        Replace every duplicate player in game with the actual player.
-        """
-        # Can't change the set we're iterating through
-        new_game = game.copy()
-        for p in new_game:
-            if p in self.duplicates:
-                game.remove(p)
-                game.add(self.duplicates[p])
 
     def add_played_game(self, game):
         """
         Add a previously-played game to take into account.
         game is a set of 7 players (player can be any type as long as it's the same in all calls to this object).
         Can raise InvalidPlayer if any player is unknown.
+        Raises InvalidPlayerCount if the games doesn't have seven players.
         """
         if len(game) != 7:
             raise InvalidPlayerCount(str(len(game)))
-        self._check_for_playing_self(game)
-        # First, replace any duplicate players with the primaries
-        # because we track "played games" by the primaries only
-        self._replace_duplicates_with_mains(game)
         for p in game:
             if p not in self.games_played_matrix:
                 raise InvalidPlayer(str(p))
@@ -174,20 +111,12 @@ class GameSeeder:
         Returns a fitness score (0-42) for a game. Lower is better.
         The value returned is twice the number of times each pair of players has played together already.
         game is a set of 7 players (player can be any type as long as it's the same in all calls to this object).
-        Can raise InvalidPlayer if any player is unknown or duplicated.
         """
-        # Algorithm doesn't work if a player is present more than once
-        self._check_for_playing_self(game)
         # Take a copy of game, because we want to replace duplicates
         g = set(game)
-        # First, replace any duplicate players with the primaries
-        # because we track "games played" for mains only
-        self._replace_duplicates_with_mains(g)
         f = 0
         # Sum the number of times each pair of players has played together already
         for p in g:
-            if p not in self.games_played_matrix:
-                raise InvalidPlayer(str(p))
             for q in g:
                 if p != q:
                     try:
@@ -205,27 +134,22 @@ class GameSeeder:
         Raises _AssignmentFailed if the algorithm messes up.
         """
         res = []
-        discards = set()
         game = set()
         while len(players) > 0:
+            if (len(players)) == 7 and (len(set(players)) < 7):
+                # We have just seven players left, but not seven unique players
+                raise _AssignmentFailed
             # Pick a random player to add to the current game
             p = random.choice(list(players))
-            players.remove(p)
-            if self._duplicate_in_game(game, p):
+            if p in game:
                 # This player is no good
-                discards.add(p)
                 continue
+            players.remove(p)
             game.add(p)
             if len(game) == 7:
                 # Done with this game. Start a new one
                 res.append(game)
                 game = set()
-                # Move discards back into the main list
-                players |= discards
-                discards = set()
-        # We may end up with a duplicate pairing in the last 7 players
-        if len(discards) != 0:
-            raise _AssignmentFailed
         return res
 
     def _set_fitness(self, games):
@@ -253,23 +177,19 @@ class GameSeeder:
            g2 = random.choice(games)
            p1 = g1.pop()
            p2 = g2.pop()
-           g1.add(p2)
-           g2.add(p1)
-           try:
-               fitness = self._set_fitness(games)
-           except InvalidPlayer:
-               # We happened to swap in a duplicate
-               # Swap them back
-               g1.remove(p2)
-               g2.remove(p1)
+           if (p1 in g2) or (p2 in g1):
+               # Don't try to create games with players playing themselves
                g1.add(p1)
                g2.add(p2)
-           else:
-               if fitness < best_fitness:
-                   #print("Improving fitness from %d to %d" % (best_fitness, fitness))
-                   #print(games)
-                   best_fitness = fitness
-                   best_set = copy.deepcopy(games)
+               continue
+           g1.add(p2)
+           g2.add(p1)
+           fitness = self._set_fitness(games)
+           if fitness < best_fitness:
+               #print("Improving fitness from %d to %d" % (best_fitness, fitness))
+               #print(games)
+               best_fitness = fitness
+               best_set = copy.deepcopy(games)
         return best_set, best_fitness
 
     def _assign_players_wrapper(self, players):
@@ -298,11 +218,14 @@ class GameSeeder:
         if len(players) == 7:
             # With 7 players, there is exactly one possible game,
             # and therefore exactly one possible seeding
-            return [[players]]
+            return [[set(players)]]
         res = []
         # Go through all possible combinations for the first game:
-        for t in itertools.combinations(list(players), 7):
+        for t in itertools.combinations(players, 7):
             game = set(t)
+            if len(game) != 7:
+                # Can't have any players playing themselves
+                continue
             # Make a copy of players, and remove the players in game
             p2 = players.copy()
             for p in game:
@@ -313,15 +236,19 @@ class GameSeeder:
                 res.append(s)
         return res
 
-    def _player_pool(self, omitting_players):
+    def _player_pool(self, omitting_players, players_doubling_up):
         """
-        Returns a set of players containing every known player and every duplicate,
+        Returns a list of players containing every known player and every player doubling up,
         but excluding any players in omitting_players.
         """
         # Come up with a list of players to draw from
-        players = set(self.games_played_matrix.keys())
+        players = list(self.games_played_matrix.keys())
+        # Check the players_doubling_up list
+        for p in players_doubling_up:
+            if p not in players:
+                raise InvalidPlayer(str(p))
         # Add in any duplicate players
-        players |= set(self.duplicates.keys())
+        players += list(players_doubling_up)
         # And omit any who aren't playing this round
         for p in omitting_players:
             if p not in players:
@@ -329,17 +256,18 @@ class GameSeeder:
             players.remove(p)
         return players
 
-    def _seed_games(self, omitting_players):
+    def _seed_games(self, omitting_players, players_doubling_up):
         """
         Returns a list of games, where each game is a set of 7 players, and the fitness score for the set.
         omitting_players is a set of previously-added players not to assign to games.
-        Can raise InvalidPlayer if any player in omitting_players is unknown.
+        players_doubling_up is an optional set of previously-added players to assign to two games each.
+        Can raise InvalidPlayer if any player in omitting_players or players_doubling_up is unknown.
         Can raise InvalidPlayerCount if the resulting number of players isn't an exact multiple of 7.
         """
-        players = self._player_pool(omitting_players)
+        players = self._player_pool(omitting_players, players_doubling_up)
         # Check that we have a multiple of seven players
         if len(players) % 7 != 0:
-            raise InvalidPlayerCount("%d total plus %d duplicated minus %d omitted" % (len(self.games_played_matrix), len(self.duplicates), len(omitting_players)))
+            raise InvalidPlayerCount("%d total plus %d duplicated minus %d omitted" % (len(self.games_played_matrix), len(players_doubling_up), len(omitting_players)))
         res = self._assign_players_wrapper(players)
         # There's no point iterating if all solutions have a fitness of zero
         if self.games_played == 0:
@@ -349,10 +277,11 @@ class GameSeeder:
         # Return the resulting list of games
         return res, fitness
 
-    def seed_games(self, omitting_players=set()):
+    def seed_games(self, omitting_players=set(), players_doubling_up=set()):
         """
         Returns a list of games, where each game is a set of 7 players.
         omitting_players is an optional set of previously-added players not to assign to games.
+        players_doubling_up is an optional set of previously-added players to assign to two games each.
         Internally, this will generate the number of sets specified when the class was instantiated,
         and return the best one.
         Can raise InvalidPlayer if any player in omitting_players is unknown.
@@ -368,9 +297,9 @@ class GameSeeder:
                 starts = self.starts
             for i in range(starts):
                 # This gives us a list of 2-tuples with (seeding, fitness)
-                seedings.append(self._seed_games(omitting_players))
+                seedings.append(self._seed_games(omitting_players, players_doubling_up))
         elif self.seed_method == SeedMethod.EXHAUSTIVE:
-            players = self._player_pool(omitting_players)
+            players = self._player_pool(omitting_players, players_doubling_up)
             seedings = []
             for s in self._all_possible_seedings(players):
                 try:

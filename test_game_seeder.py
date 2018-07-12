@@ -23,7 +23,7 @@ from game_seeder import *
 
 class GameSeederSetupTest(unittest.TestCase):
     """
-    Validate the setup of GameSeeder - adding players, games, duplicate players, etc.
+    Validate the setup of GameSeeder - adding players, games, etc.
     """
 
     # Our players will be strings (names)
@@ -39,36 +39,6 @@ class GameSeederSetupTest(unittest.TestCase):
         seeder = GameSeeder()
         seeder.add_player('A')
         self.assertRaises(InvalidPlayer, seeder.add_player, 'A')
-
-    # duplicate_player()
-    def test_duplicate_player(self):
-        seeder = GameSeeder()
-        seeder.add_player('A')
-        seeder.duplicate_player('A', 'A2')
-
-    def test_duplicate_player_non_existent(self):
-        seeder = GameSeeder()
-        seeder.add_player('A')
-        self.assertRaises(InvalidPlayer, seeder.duplicate_player, 'B', 'A2')
-
-    def test_duplicate_player_twice(self):
-        seeder = GameSeeder()
-        seeder.add_player('A')
-        seeder.duplicate_player('A', 'A2')
-        self.assertRaises(InvalidKey, seeder.duplicate_player, 'A', 'A2')
-
-    def test_duplicate_player_for_three_games(self):
-        # In theory, it's ok to have one player play three (or more) games simultaneously
-        seeder = GameSeeder()
-        seeder.add_player('A')
-        seeder.duplicate_player('A', 'A2')
-        seeder.duplicate_player('A', 'A3')
-
-    def test_duplicate_player_invalid_key(self):
-        seeder = GameSeeder()
-        seeder.add_player('A')
-        seeder.add_player('B')
-        self.assertRaises(InvalidKey, seeder.duplicate_player, 'A', 'B')
 
     # add_played_game()
     def test_add_played_game(self):
@@ -93,41 +63,6 @@ class GameSeederSetupTest(unittest.TestCase):
         seeder.add_player('F')
         self.assertRaises(InvalidPlayer, seeder.add_played_game, set(['A', 'B', 'C', 'D', 'E', 'F', 'G']))
 
-    def test_add_played_game_duplicate_player(self):
-        seeder = GameSeeder()
-        seeder.add_player('A')
-        seeder.add_player('B')
-        seeder.add_player('C')
-        seeder.add_player('D')
-        seeder.add_player('E')
-        seeder.add_player('F')
-        seeder.add_player('G')
-        seeder.duplicate_player('G', 'G2')
-        seeder.add_played_game(set(['A', 'B', 'C', 'D', 'E', 'F', 'G2']))
-
-    def test_add_played_game_player_and_duplicate_present(self):
-        seeder = GameSeeder()
-        seeder.add_player('A')
-        seeder.add_player('B')
-        seeder.add_player('C')
-        seeder.add_player('D')
-        seeder.add_player('E')
-        seeder.add_player('F')
-        seeder.duplicate_player('F', 'F2')
-        self.assertRaises(InvalidPlayer, seeder.add_played_game, set(['A', 'B', 'C', 'D', 'E', 'F', 'F2']))
-
-    def test_add_played_game_two_duplicates_present(self):
-        seeder = GameSeeder()
-        seeder.add_player('A')
-        seeder.add_player('B')
-        seeder.add_player('C')
-        seeder.add_player('D')
-        seeder.add_player('E')
-        seeder.add_player('F')
-        seeder.duplicate_player('F', 'F2')
-        seeder.duplicate_player('F', 'F3')
-        self.assertRaises(InvalidPlayer, seeder.add_played_game, set(['A', 'B', 'C', 'D', 'E', 'F2', 'F3']))
-
     def test_add_played_game_player_too_few_players(self):
         seeder = GameSeeder()
         seeder.add_player('A')
@@ -138,7 +73,7 @@ class GameSeederSetupTest(unittest.TestCase):
         seeder.add_player('F')
         self.assertRaises(InvalidPlayerCount, seeder.add_played_game, set(['A', 'B', 'C', 'D', 'E', 'F']))
 
-    def test_add_played_game_player_too_few_players(self):
+    def test_add_played_game_player_too_many_players(self):
         seeder = GameSeeder()
         seeder.add_player('A')
         seeder.add_player('B')
@@ -161,16 +96,6 @@ class GameSeederSetupTest(unittest.TestCase):
         seeder.add_player('F')
         seeder.add_player('G')
         self.assertEqual(0, seeder._fitness_score(set(['A', 'B', 'C', 'D', 'E', 'F', 'G'])))
-
-    def test_fitness_score_invalid_player(self):
-        seeder = GameSeeder()
-        seeder.add_player('A')
-        seeder.add_player('B')
-        seeder.add_player('C')
-        seeder.add_player('D')
-        seeder.add_player('E')
-        seeder.add_player('F')
-        self.assertRaises(InvalidPlayer, seeder._fitness_score, set(['A', 'B', 'C', 'D', 'E', 'F', 'G']))
 
     def test_fitness_score_one_pair_played(self):
         seeder = GameSeeder()
@@ -200,24 +125,6 @@ class GameSeederSetupTest(unittest.TestCase):
         seeder.add_player('G')
         seeder.add_played_game(set(['A', 'B', 'C', 'D', 'E', 'F', 'G']))
         self.assertEqual(42, seeder._fitness_score(set(['A', 'B', 'C', 'D', 'E', 'F', 'G'])))
-
-    def test_fitness_score_worst_case_with_duplicate(self):
-        seeder = GameSeeder()
-        seeder.add_player('A')
-        seeder.add_player('B')
-        seeder.add_player('C')
-        seeder.add_player('D')
-        seeder.add_player('E')
-        seeder.add_player('F')
-        seeder.add_player('G')
-        seeder.duplicate_player('F', 'F2')
-        seeder.add_played_game(set(['A', 'B', 'C', 'D', 'E', 'F', 'G']))
-        game = set(['A', 'B', 'C', 'D', 'E', 'F2', 'G'])
-        # Take a copy of game
-        g2 = set(game)
-        self.assertEqual(42, seeder._fitness_score(game))
-        # Check that the method didn't change game
-        self.assertEqual(game, g2)
 
     def test_fitness_score_two_pairs(self):
         seeder = GameSeeder()
@@ -305,11 +212,8 @@ class GameSeederSeedingTest(unittest.TestCase):
     def check_game(self, game):
         # Game should have exactly 7 players
         self.assertEqual(len(game), 7)
-        # No player should be playing with their duplicate
-        # In this test, all duplicates are the playername plus '2'
-        for p in game:
-            if p[-1] == '2':
-                self.assertFalse(p[:-1] in game)
+        # No player should be playing with themselves
+        self.assertEqual(len(set(game)), 7)
 
     def check_game_set(self, game_set, players, omissions = set()):
         game_count = len(game_set)
@@ -381,13 +285,6 @@ class GameSeederSeedingTest(unittest.TestCase):
         s.add_player('V')
         self.assertRaises(InvalidPlayerCount, s.seed_games)
 
-    def test_seed_games_wrong_number_of_players_2(self):
-        # Mutliple of 7 players, plus one duplicate
-        s = create_seeder()
-        s.add_player('U')
-        s.duplicate_player('U', 'U2')
-        self.assertRaises(InvalidPlayerCount, s.seed_games)
-
     def test_seed_games_wrong_number_of_players_3(self):
         # Multiple of 7 players, minus one not playing
         s = create_seeder()
@@ -400,22 +297,6 @@ class GameSeederSeedingTest(unittest.TestCase):
         s.add_player('U')
         s.add_player('V')
         omits = set(['U'])
-        r = s.seed_games(omits)
-        self.check_game_set(r, 21)
-
-    def test_seed_games_with_duplicate(self):
-        # Multiple of 7 players minus one, plus one duplicate
-        s = create_seeder()
-        s.duplicate_player('T', 'T2')
-        r = s.seed_games()
-        self.check_game_set(r, 21)
-
-    def test_seed_games_with_omitted_duplicate(self):
-        # Multiple of 7 players, plus one omitted duplicate
-        s = create_seeder()
-        s.add_player('U')
-        s.duplicate_player('T', 'T2')
-        omits = set(['T2'])
         r = s.seed_games(omits)
         self.check_game_set(r, 21)
 
@@ -436,11 +317,8 @@ class ExhaustiveGameSeederTest(unittest.TestCase):
     def check_game(self, game):
         # Game should have exactly 7 players
         self.assertEqual(len(game), 7)
-        # No player should be playing with their duplicate
-        # In this test, all duplicates are the playername plus '2'
-        for p in game:
-            if p[-1] == '2':
-                self.assertFalse(p[:-1] in game)
+        # No player should be playing with themselves
+        self.assertEqual(len(set(game)), 7)
 
     # TODO This is a copy-paste from the class above. Should share code
     def check_game_set(self, game_set, players, omissions = set()):

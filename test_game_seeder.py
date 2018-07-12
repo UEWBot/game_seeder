@@ -326,8 +326,8 @@ class ExhaustiveGameSeederTest(unittest.TestCase):
         # Games should always be sets (and hence have no duplicate players)
         self.assertTrue(isinstance(game, set))
 
-    # TODO This is a copy-paste from the class above. Should share code
-    def check_game_set(self, game_set, players, omissions = set()):
+    # TODO This is a copy-paste from the class above, then modified. Should share code
+    def check_game_set(self, game_set, players):
         game_count = len(game_set)
         self.assertEqual(game_count, players / 7)
         # Every game should be valid by itself
@@ -338,8 +338,6 @@ class ExhaustiveGameSeederTest(unittest.TestCase):
         for g in game_set:
             players |= g
         self.assertEqual(len(players), 7 * game_count, "One or more players is playing multiple games")
-        # No omitted players should be present
-        self.assertEqual(len(players & omissions), 0, "One or more omitted players is in a game")
 
     def test_exhaustive_seeding(self):
         players = [(7, 42), (14, 36)]

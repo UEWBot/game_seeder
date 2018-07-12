@@ -212,8 +212,8 @@ class GameSeederSeedingTest(unittest.TestCase):
     def check_game(self, game):
         # Game should have exactly 7 players
         self.assertEqual(len(game), 7)
-        # No player should be playing with themselves
-        self.assertEqual(len(set(game)), 7)
+        # Games should always be sets (and hence have no duplicate players)
+        self.assertTrue(isinstance(game, set))
 
     def check_game_set(self, game_set, players, omissions = set()):
         game_count = len(game_set)
@@ -317,8 +317,8 @@ class ExhaustiveGameSeederTest(unittest.TestCase):
     def check_game(self, game):
         # Game should have exactly 7 players
         self.assertEqual(len(game), 7)
-        # No player should be playing with themselves
-        self.assertEqual(len(set(game)), 7)
+        # Games should always be sets (and hence have no duplicate players)
+        self.assertTrue(isinstance(game, set))
 
     # TODO This is a copy-paste from the class above. Should share code
     def check_game_set(self, game_set, players, omissions = set()):

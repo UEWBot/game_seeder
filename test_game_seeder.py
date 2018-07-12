@@ -298,7 +298,7 @@ class GameSeederSeedingTest(unittest.TestCase):
         s.add_player('V')
         omits = set(['U'])
         r = s.seed_games(omits)
-        self.check_game_set(r, 21)
+        self.check_game_set(r, 21, omits)
 
 class ExhaustiveGameSeederTest(unittest.TestCase):
     """

@@ -285,11 +285,17 @@ class GameSeederSeedingTest(unittest.TestCase):
         s.add_player('V')
         self.assertRaises(InvalidPlayerCount, s.seed_games)
 
-    def test_seed_games_wrong_number_of_players_3(self):
+    def test_seed_games_wrong_number_of_players_2(self):
         # Multiple of 7 players, minus one not playing
         s = create_seeder()
         s.add_player('U')
         self.assertRaises(InvalidPlayerCount, s.seed_games, set(['U']))
+
+    def test_seed_games_wrong_number_of_players_3(self):
+        # Multiple of 7 players, plus one playing two games
+        s = create_seeder()
+        s.add_player('U')
+        self.assertRaises(InvalidPlayerCount, s.seed_games, set(), set(['U']))
 
     def test_seed_games_with_omission(self):
         # Multiple of 7 players plus one, minus one not playing

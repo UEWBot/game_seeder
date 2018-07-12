@@ -215,19 +215,26 @@ class GameSeederSeedingTest(unittest.TestCase):
         # Games should always be sets (and hence have no duplicate players)
         self.assertTrue(isinstance(game, set))
 
-    def check_game_set(self, game_set, players, omissions = set()):
+    def check_game_set(self, game_set, players, omissions = set(), duplicates = set()):
         game_count = len(game_set)
         self.assertEqual(game_count, players / 7)
         # Every game should be valid by itself
         for g in game_set:
             self.check_game(g)
-        # Each player should be present exactly once
-        players = set()
+        # Each player should be present exactly once, except for duplicates
+        unique_players = set()
         for g in game_set:
-            players |= g
-        self.assertEqual(len(players), 7 * game_count, "One or more players is playing multiple games")
+            unique_players |= g
+        self.assertEqual(len(unique_players) + len(duplicates), 7 * game_count, "One or more players is playing multiple games")
         # No omitted players should be present
-        self.assertEqual(len(players & omissions), 0, "One or more omitted players is in a game")
+        self.assertEqual(len(unique_players & omissions), 0, "One or more omitted players is in a game")
+        # Duplicate players should be playing exactly two games
+        for p in duplicates:
+            count = 0
+            for g in game_set:
+                if p in g:
+                    count += 1
+            self.assertEqual(count, 2, "Player %s should be playing 2 games but is actually playing %d" % (p, count))
 
     # seed_games()
     def test_seed_games_initial(self):
@@ -305,6 +312,13 @@ class GameSeederSeedingTest(unittest.TestCase):
         omits = set(['U'])
         r = s.seed_games(omits)
         self.check_game_set(r, 21, omits)
+
+    def test_seed_games_with_multiples(self):
+        # Multiple of 7 players minus one, minus one playing two games
+        s = create_seeder()
+        dups = set(['T'])
+        r = s.seed_games(players_doubling_up=dups)
+        self.check_game_set(r, 21, duplicates=dups)
 
 class ExhaustiveGameSeederTest(unittest.TestCase):
     """
